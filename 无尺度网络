@@ -1,0 +1,62 @@
+#include <iostream>
+#include <vector>
+#include <random>
+#include <algorithm>
+
+using namespace std;
+int getRandomNode(const vector<vector<int>>&, mt19937&);
+
+int main() {
+    int N = 1000; // 网络中的节点数
+    int m0 = 5; // 初始节点数
+    int m = 3; // 每次添加新节点时要连接的边数
+
+    vector<vector<int>> network(N);//vector（点（连接点））
+
+    random_device rd;
+    mt19937 gen(rd());
+
+    // 创建初始节点并完全连接
+    for (int i = 0; i < m0; ++i) {
+        for (int j = i + 1; j < m0; ++j) {
+            network[i].push_back(j);
+            network[j].push_back(i);
+        }
+    }
+    // 生成无尺度网络
+    for (int i = m0; i < N; ++i) {
+        for (int j = 0; j < m; ++j) {
+            int targetNode = getRandomNode(network, gen);
+            network[i].push_back(targetNode);
+            network[targetNode].push_back(i);
+        }
+    }
+    // 输出网络连接情况
+    for (int i = 0; i < N; ++i) {
+        cout << "Node " << i << " is connected to: ";
+        for (int j : network[i]) {
+            cout << j << " ";
+        }
+        cout << endl;
+    }
+    return 0;
+}
+
+// 基于当前网络连接情况，随机选择一个节点
+int getRandomNode(const vector<vector<int>>& network, mt19937& gen) {
+    int totalDegree = 0;
+    for (const auto& neighbors : network) {
+        totalDegree += static_cast<int>(neighbors.size());
+    }
+    uniform_int_distribution<> dist(0, totalDegree - 1);
+    int randomDegree = dist(gen);
+
+    int degreeSum = 0;
+    for (int i = 0; i < static_cast<int>(network.size()); ++i) {
+        degreeSum += static_cast<int>(network[i].size());
+        if (degreeSum > randomDegree) {
+            return i;
+        }
+    }
+    return network.size() - 1;
+}
