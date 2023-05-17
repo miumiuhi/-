@@ -1,0 +1,135 @@
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <random>
+#include <map>
+#include <algorithm>
+#include <tuple>
+#define N 100
+using namespace std;
+void BFS(int start, const vector<vector<int>>& Network, vector<vector<vector<int>>>& PATH, vector<vector<bool>>& connected) {
+    vector<bool> seen(N, false);
+    map<int, int> reverseNode;
+    queue<int> q;
+    q.push(start);
+    seen[start] = true;
+    while (!q.empty()) {
+        int node = q.front();
+        q.pop();
+        for (int nextnode : Network[node]) {
+            if (!seen[nextnode]) {
+                q.push(nextnode);
+                reverseNode[nextnode] = node;
+                seen[nextnode] = true;
+            }
+        }
+    }
+    for (int i = 0; i < N; i++) {
+        if (i == start) continue;
+        if (!seen[i]) {
+            connected[start][i] = false;
+            continue;
+        }
+        int current = i;
+        PATH[start][i].push_back(i);
+        while (reverseNode.find(current) != reverseNode.end() && reverseNode[current] != start) {
+            PATH[start][i].push_back(reverseNode[current]);
+            current = reverseNode[current];
+        }
+        PATH[start][i].push_back(start);
+        reverse(PATH[start][i].begin(), PATH[start][i].end());
+    }
+}
+tuple<int, int> ReturnMaxCouple(vector<vector<int>>& Network) {
+    vector<vector<bool>> connected(N, vector<bool>(N, true));
+    vector<vector<vector<int>>> PATH(N, vector<vector<int>>(N, vector<int>()));
+    
+    for (int m = 0; m < N; m++)
+        BFS(m, Network, PATH, connected);
+    vector<vector<int>> betweeness(N, vector<int>(N, 0));
+    //检索PATH，检查每个点,读入betweeness
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            if (i == j) continue;
+            if (!connected[i][j]) continue;
+            for (int k = 0; k < PATH[i][j].size() - 1; k++) {
+                for (int l = k + 1; l < PATH[i][j].size(); l++) {
+                    int m = PATH[i][j][k];
+                    int n = PATH[i][j][l];
+                    betweeness[min(m, n)][max(m, n)]++;
+                }
+            }
+        }
+    }
+    map<int, tuple<int, int>> FindMaxLine;
+    int maxbetweeness = 0;
+    for (int i = 0; i < N; i++) {
+        for (int j = i + 1; j < N; j++) {
+            if (betweeness[i][j] > maxbetweeness) {
+                maxbetweeness = betweeness[i][j];
+                FindMaxLine[betweeness[i][j]] = make_tuple(i, j);
+            }
+        }
+    }
+
+    return FindMaxLine[maxbetweeness];
+}
+void deleteEdge(vector<vector<int>>& Network) {
+    int m = get<0>(ReturnMaxCouple(Network));
+    int n = get<1>(ReturnMaxCouple(Network));
+    auto it1 = find(Network[m].begin(), Network[m].end(), n);
+    if (it1 != Network[m].end()) 
+        Network[m].erase(it1);
+    auto it2 = find(Network[n].begin(), Network[n].end(), m);
+    if (it2 != Network[n].end())
+        Network[n].erase(it2);
+}
+int CommunityNumber(vector<vector<int>>& Network) {
+    int communitynumber = 0;
+    vector<bool> seen(N, false);
+    queue<int> q;
+    for (int t = 0; t < N;t++) {
+        if(!seen[t]){
+            q.push(t);
+            seen[t] = true;
+            while (!q.empty()) {
+                int node = q.front();
+                q.pop();
+                for (int nextnode : Network[node]) {
+                    if (!seen[nextnode]) {
+                        q.push(nextnode);
+                        seen[nextnode] = true;
+                    }
+                }
+            }
+            communitynumber++;
+        }
+    }
+    return communitynumber;
+}
+int main() {
+    float p = 0.5;
+    int given_communitynumber = 2;
+    vector<vector<int>> Network(N, vector<int>());
+    random_device rd;
+    mt19937 gen(rd());
+    for (int i = 0; i < N; i++) {
+        uniform_real_distribution<> dist(0, 1);
+        for (int j = i + 1; j < N; j++) {
+            if (dist(gen) < p) {
+                Network[i].push_back(j);
+                Network[j].push_back(i);
+            }
+        }
+    }
+    int current_number = CommunityNumber(Network);
+    while (current_number < given_communitynumber) {
+        int m = get<0>(ReturnMaxCouple(Network));
+        int n = get<1>(ReturnMaxCouple(Network));
+        cout << m<< "  " << n << endl;
+        deleteEdge(Network);
+        current_number = CommunityNumber(Network);
+    }
+    cout << current_number << endl;
+}
+//由于我设置的网络本身不具有社区结构，运行该文件需要很久，但是能从调试窗口看见不断的更新最长边
